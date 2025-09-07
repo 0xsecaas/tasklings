@@ -16,7 +16,7 @@ fn get_tasks_file() -> PathBuf {
 fn get_undone_file() -> PathBuf {
     dirs::home_dir()
         .expect("Could not find home directory")
-        .join(".task_undone")
+        .join(".tasks_undone")
 }
 
 /// Loads tasks from the tasks file.
