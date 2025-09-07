@@ -200,15 +200,18 @@ fn load_tasks() -> TaskList {
 fn print_progress(manager: &TaskManager) {
     let total = manager.tasks.len();
     let done_count = manager.tasks.iter().filter(|t| t.done).count();
+    let undone_count = total - done_count;
     let bar_width = 70;
     let filled = bar_width * done_count / total;
     let empty = bar_width - filled;
+    let percent_done = (done_count * 100) / total;
 
     let task_status: String = if manager.current_task().done {
         "✅".into()
     } else {
         "❌".into()
     };
+
     println!("\n[");
     println!(
         "{} Task {} of {}:",
@@ -216,16 +219,22 @@ fn print_progress(manager: &TaskManager) {
         manager.current_task().id,
         total
     );
-    println!("{}\n", manager.current_task().title);
-    println!("{}\n", manager.current_task().description);
+
+    println!("\n==============================");
     println!(
-        "Progress: [{}{}] {}/{}",
+        "Progress: {}/{} done | {} undone | {}%",
+        done_count, total, undone_count, percent_done
+    );
+    println!(
+        "[{}{}] {}%",
         "#".repeat(filled),
         "-".repeat(empty),
-        done_count,
-        total
+        percent_done
     );
+    println!("==============================\n");
 
+    println!("{}\n", manager.current_task().title);
+    println!("{}\n", manager.current_task().description);
     println!("\nd:mark done / u:mark undone / p:previous task / n:next task / q:quit ?\n");
     println!("]");
 }
@@ -275,3 +284,4 @@ fn main() {
         }
     }
 }
+
