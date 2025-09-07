@@ -14,6 +14,8 @@ struct Task {
 #[derive(Serialize, Deserialize, Debug)]
 struct TaskList {
     tasks: Vec<Task>,
+    #[serde(default)]
+    current_index: usize, // optional, defaults to 0 if missing
 }
 
 fn get_tasks_file() -> PathBuf {
@@ -25,12 +27,21 @@ fn load_tasks() -> TaskList {
     let path = get_tasks_file();
     if !path.exists() {
         // Initialize empty list if no file
-        let empty = TaskList { tasks: vec![] };
+        let empty = TaskList {
+            tasks: vec![],
+            current_index: 0,
+        };
         save_tasks(&empty);
         return empty;
     }
     let content = fs::read_to_string(path).expect("Failed to read tasks file");
-    toml::from_str(&content).expect("Invalid TOML format in tasks file")
+    let mut tasks_list: TaskList =
+        toml::from_str(&content).expect("Invalid TOML format in tasks file");
+    // make sure index is valid
+    if tasks_list.current_index >= tasks_list.tasks.len() {
+        tasks_list.current_index = tasks_list.tasks.iter().position(|t| !t.done).unwrap_or(0);
+    }
+    tasks_list
 }
 
 fn save_tasks(tasklist: &TaskList) {
@@ -39,7 +50,7 @@ fn save_tasks(tasklist: &TaskList) {
     fs::write(path, toml).expect("Failed to write tasks file");
 }
 
-fn print_progress(tasks: &TaskList, index: usize) {
+fn print_progress(tasks: &TaskList) {
     let total = tasks.tasks.len();
     let done_count = tasks.tasks.iter().filter(|t| t.done).count();
 
@@ -48,9 +59,9 @@ fn print_progress(tasks: &TaskList, index: usize) {
     let empty = bar_width - filled;
 
     println!("\n[");
-    println!("Task {} of {}:", index + 1, total);
-    println!("{}\n", tasks.tasks[index].title);
-    println!("{}\n", tasks.tasks[index].description);
+    println!("Task {} of {}:", tasks.current_index + 1, total);
+    println!("{}\n", tasks.tasks[tasks.current_index].title);
+    println!("{}\n", tasks.tasks[tasks.current_index].description);
     println!(
         "Progress: [{}{}] {}/{}",
         "#".repeat(filled),
@@ -70,10 +81,8 @@ fn main() {
         return;
     }
 
-    let mut index = tasks.tasks.iter().position(|t| !t.done).unwrap_or(0);
-
     loop {
-        print_progress(&tasks, index);
+        print_progress(&tasks);
 
         print!("> ");
         io::stdout().flush().unwrap();
@@ -84,21 +93,31 @@ fn main() {
 
         match cmd {
             "d" => {
-                tasks.tasks[index].done = true;
+                tasks.tasks[tasks.current_index].done = true;
+
+                // Move to the next undone task automatically
+                if let Some(next) = tasks
+                    .tasks
+                    .iter()
+                    .position(|t| !t.done && t.id > tasks.tasks[tasks.current_index].id)
+                {
+                    tasks.current_index = next;
+                }
                 save_tasks(&tasks);
                 print!("✅ Marked done");
             }
             "u" => {
-                tasks.tasks[index].done = false;
+                tasks.tasks[tasks.current_index].done = false;
                 save_tasks(&tasks);
                 println!("↩️  Marked undone");
             }
             "p" => {
-                index = index.saturating_sub(1);
+                tasks.current_index = tasks.current_index.saturating_sub(1);
             }
             "n" => {
-                if index + 1 < tasks.tasks.len() {
-                    index += 1;
+                if tasks.current_index + 1 < tasks.tasks.len() {
+                    tasks.current_index += 1;
+                    save_tasks(&tasks);
                 }
             }
             "q" => {
