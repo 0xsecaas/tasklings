@@ -96,13 +96,10 @@ fn main() {
                 tasks.tasks[tasks.current_index].done = true;
 
                 // Move to the next undone task automatically
-                if let Some(next) = tasks
-                    .tasks
-                    .iter()
-                    .position(|t| !t.done && t.id > tasks.tasks[tasks.current_index].id)
-                {
+                if let Some(next) = tasks.tasks.iter().position(|t| !t.done) {
                     tasks.current_index = next;
                 }
+
                 save_tasks(&tasks);
                 print!("✅ Marked done");
             }
