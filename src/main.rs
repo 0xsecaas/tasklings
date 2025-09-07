@@ -182,7 +182,7 @@ fn load_tasks() -> TaskList {
     let path = get_tasks_file();
     if !path.exists() {
         // Initialize empty list if no file
-        TaskList {
+        return TaskList {
             tasks: vec![],
             current_index: 0,
         };
