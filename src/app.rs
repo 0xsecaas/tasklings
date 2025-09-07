@@ -16,7 +16,8 @@ impl App {
     /// Creates a new `App`.
     pub fn new() -> io::Result<App> {
         let tasks_list = persistence::load_tasks()?;
-        let task_manager = TaskManager::new(tasks_list.tasks)?;
+        let mut task_manager = TaskManager::new(tasks_list.tasks)?;
+        task_manager.first_undone();
         Ok(App {
             task_manager,
             should_quit: false,
@@ -31,6 +32,7 @@ impl App {
     /// Marks the current task as done.
     pub fn mark_done(&mut self) {
         self.task_manager.mark_done();
+        self.task_manager.next_undone();
     }
 
     /// Marks the current task as not done.
@@ -62,5 +64,4 @@ impl App {
     pub fn last_task(&mut self) {
         self.task_manager.last();
     }
-
 }
