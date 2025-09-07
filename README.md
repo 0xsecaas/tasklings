@@ -7,6 +7,20 @@ Break big dreams into small tasks, stay focused, and keep moving forward.
 
 ![tasklings onboarding image](./res/3.png)
 
+## Installation & Usage
+
+To install `tasklings`, ensure you have Rust and Cargo installed, then run:
+
+```bash
+cargo install tasklings
+```
+
+After installation, you can run the tool from your terminal:
+
+```bash
+tasklings
+```
+
 ## Why Tasklings?
 
 It answers one daily question:  
