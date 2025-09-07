@@ -174,7 +174,7 @@ fn persist_undone_indexes(indexes: &[usize]) {
     fs::write(get_undone_file(), content).expect("Failed to write undone indexes")
 }
 
-fn firts_undone(tasks: &[Task]) -> usize {
+fn first_undone(tasks: &[Task]) -> usize {
     tasks.iter().position(|t| !t.done).unwrap_or(0)
 }
 
@@ -192,7 +192,7 @@ fn load_tasks() -> TaskList {
         toml::from_str(&content).expect("Invalid TOML format in tasks file");
     // make sure index is valid
     if tasks_list.current_index >= tasks_list.tasks.len() {
-        tasks_list.current_index = firts_undone(&tasks_list.tasks);
+        tasks_list.current_index = first_undone(&tasks_list.tasks);
     }
     tasks_list
 }
@@ -275,4 +275,3 @@ fn main() {
         }
     }
 }
-
