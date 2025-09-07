@@ -19,20 +19,22 @@ pub enum InputEvent {
 
 /// Handles user input.
 pub fn handle_input() -> io::Result<InputEvent> {
-    if event::poll(std::time::Duration::from_millis(250))?
-        && let Event::Key(key) = event::read()?
-        && key.kind == KeyEventKind::Press
-    {
-        match key.code {
-            KeyCode::Char('q') | KeyCode::Esc => return Ok(InputEvent::Quit),
-            KeyCode::Char('d') => return Ok(InputEvent::MarkDone),
-            KeyCode::Char('u') => return Ok(InputEvent::MarkUndone),
-            KeyCode::Char('n') | KeyCode::Right => return Ok(InputEvent::NextTask),
-            KeyCode::Char('p') | KeyCode::Left => return Ok(InputEvent::PreviousTask),
-            KeyCode::Char('N') => return Ok(InputEvent::NextUndoneTask),
-            KeyCode::Char('f') => return Ok(InputEvent::FirstUndone),
-            KeyCode::Char('l') => return Ok(InputEvent::LastTask),
-            _ => {}
+    if event::poll(std::time::Duration::from_millis(250))? {
+        let event = event::read()?;
+        if let Event::Key(key) = event {
+            if key.kind == KeyEventKind::Press {
+                match key.code {
+                    KeyCode::Char('q') | KeyCode::Esc => return Ok(InputEvent::Quit),
+                    KeyCode::Char('d') => return Ok(InputEvent::MarkDone),
+                    KeyCode::Char('u') => return Ok(InputEvent::MarkUndone),
+                    KeyCode::Char('n') | KeyCode::Right => return Ok(InputEvent::NextTask),
+                    KeyCode::Char('p') | KeyCode::Left => return Ok(InputEvent::PreviousTask),
+                    KeyCode::Char('N') => return Ok(InputEvent::NextUndoneTask),
+                    KeyCode::Char('f') => return Ok(InputEvent::FirstUndone),
+                    KeyCode::Char('l') => return Ok(InputEvent::LastTask),
+                    _ => {}
+                }
+            }
         }
     }
     Ok(InputEvent::Noop)
