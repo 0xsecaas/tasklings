@@ -52,4 +52,15 @@ impl App {
     pub fn next_undone_task(&mut self) {
         self.task_manager.next_undone();
     }
+
+    /// Moves to the first undone task.
+    pub fn first_undone_task(&mut self) {
+        self.task_manager.first_undone();
+    }
+
+    /// Moves to the last task.
+    pub fn last_task(&mut self) {
+        self.task_manager.last();
+    }
+
 }

@@ -4,6 +4,7 @@ use crossterm::event::{self, Event, KeyCode, KeyEventKind};
 use std::io;
 
 /// Input events.
+#[derive(Debug, PartialEq, Eq)]
 pub enum InputEvent {
     Quit,
     MarkDone,
@@ -11,6 +12,8 @@ pub enum InputEvent {
     NextTask,
     PreviousTask,
     NextUndoneTask,
+    FirstUndone,
+    LastTask,
     Noop,
 }
 
@@ -27,6 +30,8 @@ pub fn handle_input() -> io::Result<InputEvent> {
             KeyCode::Char('n') | KeyCode::Right => return Ok(InputEvent::NextTask),
             KeyCode::Char('p') | KeyCode::Left => return Ok(InputEvent::PreviousTask),
             KeyCode::Char('N') => return Ok(InputEvent::NextUndoneTask),
+            KeyCode::Char('f') => return Ok(InputEvent::FirstUndone),
+            KeyCode::Char('l') => return Ok(InputEvent::LastTask),
             _ => {}
         }
     }

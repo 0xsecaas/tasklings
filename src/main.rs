@@ -64,6 +64,8 @@ fn run_app<B: ratatui::backend::Backend>(
             InputEvent::NextTask => app.next_task(),
             InputEvent::PreviousTask => app.previous_task(),
             InputEvent::NextUndoneTask => app.next_undone_task(),
+            InputEvent::FirstUndone => app.first_undone_task(),
+            InputEvent::LastTask => app.last_task(),
             InputEvent::Noop => {}
         }
 
@@ -96,7 +98,7 @@ fn ui(f: &mut Frame, app: &App) {
     let description_text = current_task.description.to_string();
 
     let footer_text =
-        "d:mark done / u:mark undone / p:previous task / n:next task / N:next undone / q:quit";
+        "d:mark done / u:mark undone / p:prev / n:next / N:next undone / f:first undone / l:last / q:quit";
 
     let chunks = Layout::default()
         .direction(Direction::Vertical)

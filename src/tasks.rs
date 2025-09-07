@@ -71,6 +71,20 @@ impl TaskManager {
         }
     }
 
+    /// Moves to the first undone task.
+    pub fn first_undone(&mut self) {
+        if self.is_done() {
+            return;
+        }
+        self.undone_pos = 0;
+        self.current_index = self.undone_indexes[0];
+    }
+
+    /// Moves to the last task.
+    pub fn last(&mut self) {
+        self.current_index = self.tasks.len() - 1;
+    }
+
     /// Moves to the next task.
     pub fn next(&mut self) {
         if self.current_index + 1 < self.tasks.len() {
