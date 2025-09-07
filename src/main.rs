@@ -1,287 +1,137 @@
-use serde::{Deserialize, Serialize};
-use std::fs;
-use std::io::{self, Write};
-use std::path::PathBuf;
+//! The main entry point for the Tasklings application.
 
-#[derive(Clone)]
-struct TaskManager {
-    tasks: Vec<Task>,
-    current_index: usize,
-    undone_indexes: Vec<usize>,
-    undone_pos: usize,
+use crossterm::{
+    event::{DisableMouseCapture, EnableMouseCapture},
+    execute,
+    terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
+};
+use ratatui::{
+    backend::CrosstermBackend,
+    layout::{Constraint, Direction, Layout},
+    text::Line,
+    widgets::{Block, Borders, Paragraph},
+    Frame,
+    Terminal,
+};
+use std::{error::Error, io};
+
+mod app;
+mod input;
+mod persistence;
+mod tasks;
+
+use app::App;
+use input::InputEvent;
+
+fn main() -> Result<(), Box<dyn Error>> {
+    // setup terminal
+    enable_raw_mode()?;
+    let mut stdout = io::stdout();
+    execute!(stdout, EnterAlternateScreen, EnableMouseCapture)?;
+    let backend = CrosstermBackend::new(stdout);
+    let mut terminal = Terminal::new(backend)?;
+
+    let mut app = App::new()?;
+    let res = run_app(&mut terminal, &mut app);
+
+    disable_raw_mode()?;
+    execute!(
+        terminal.backend_mut(),
+        LeaveAlternateScreen,
+        DisableMouseCapture
+    )?;
+    terminal.show_cursor()?;
+
+    if let Err(err) = res {
+        println!("{:?}", err)
+    }
+
+    Ok(())
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
-struct Task {
-    id: i32,
-    title: String,
-    description: String,
-    done: bool,
-}
+/// Runs the main application loop.
+fn run_app<B: ratatui::backend::Backend>(
+    terminal: &mut Terminal<B>,
+    app: &mut App,
+) -> io::Result<()> {
+    loop {
+        terminal.draw(|f| ui(f, app))?;
 
-#[derive(Serialize, Deserialize, Debug)]
-struct TaskList {
-    tasks: Vec<Task>,
-    #[serde(default)]
-    current_index: usize,
-}
+        match input::handle_input()? {
+            InputEvent::Quit => app.quit(),
+            InputEvent::MarkDone => app.mark_done(),
+            InputEvent::MarkUndone => app.mark_undone(),
+            InputEvent::NextTask => app.next_task(),
+            InputEvent::PreviousTask => app.previous_task(),
+            InputEvent::NextUndoneTask => app.next_undone_task(),
+            InputEvent::Noop => {}
+        }
 
-#[derive(Serialize)]
-struct TaskListRef<'a> {
-    tasks: &'a [Task],
-    current_index: usize,
-}
-
-impl TaskManager {
-    fn new(tasks: Vec<Task>) -> Self {
-        let undone_indexes: Vec<usize> = load_undone_indexes(&tasks);
-        let undone_pos = 0;
-        let current_index = 0;
-        Self {
-            tasks,
-            current_index,
-            undone_indexes,
-            undone_pos,
+        if app.should_quit {
+            return Ok(());
         }
     }
-
-    fn current_task(&self) -> &Task {
-        &self.tasks[self.current_index]
-    }
-
-    fn current_task_mut(&mut self) -> &mut Task {
-        &mut self.tasks[self.current_index]
-    }
-
-    fn next_undone(&mut self) {
-        if !self.is_done() && self.undone_pos + 1 < self.undone_indexes.len() {
-            self.undone_pos += 1;
-            self.current_index = self.undone_indexes[self.undone_pos];
-        }
-    }
-
-    fn next(&mut self) {
-        if self.current_index + 1 < self.tasks.len() {
-            self.current_index += 1;
-        }
-    }
-
-    fn previous(&mut self) {
-        if self.current_index > 0 {
-            self.current_index = self.current_index.saturating_sub(1);
-        }
-    }
-
-    fn mark_done(&mut self) {
-        self.current_task_mut().done = true;
-        self.undone_indexes.remove(self.undone_pos);
-
-        // adjust undone_pos if we removed the last element
-        if self.undone_pos >= self.undone_indexes.len() && !self.undone_indexes.is_empty() {
-            self.undone_pos = self.undone_indexes.len() - 1;
-        }
-        self.persist();
-        print!("✅ Marked done");
-    }
-
-    fn mark_undone(&mut self) {
-        let index = self.current_index;
-        self.tasks[index].done = false;
-
-        // insert into undone_indexes at correct sorted position
-        match self.undone_indexes.binary_search(&index) {
-            Ok(_) => {} // already exists
-            Err(pos) => self.undone_indexes.insert(pos, index),
-        }
-        self.undone_pos = self
-            .undone_indexes
-            .iter()
-            .position(|&i| i == index)
-            .unwrap();
-
-        self.persist();
-        println!("↩️  Marked undone");
-    }
-
-    fn is_done(&self) -> bool {
-        self.undone_indexes.is_empty()
-    }
-
-    /// save the current tasks and current undone position to disk
-    fn persist(&self) {
-        let tasklist = TaskListRef {
-            tasks: &self.tasks,
-            current_index: self
-                .undone_indexes
-                .get(self.undone_pos)
-                .copied()
-                .unwrap_or(0),
-        };
-
-        let path = get_tasks_file();
-        let toml = toml::to_string_pretty(&tasklist).expect("Failed to serialize tasks");
-        fs::write(path, toml).expect("Failed to write tasks file");
-
-        persist_undone_indexes(&self.undone_indexes);
-    }
 }
 
-fn get_tasks_file() -> PathBuf {
-    let home = dirs::home_dir().expect("Could not find home directory");
-    home.join(".tasks")
-}
-
-/// Keep a cache of indexes of undone tasks to prevent recalculating each time
-fn get_undone_file() -> PathBuf {
-    let home = dirs::home_dir().expect("Could not find home directory");
-    home.join(".task_undone")
-}
-
-fn load_undone_indexes(tasks: &[Task]) -> Vec<usize> {
-    let path = get_undone_file();
-    if path.exists() {
-        let content = fs::read_to_string(path).unwrap_or_default();
-        let mut indexes: Vec<usize> = content
-            .lines()
-            .filter_map(|line| line.parse::<usize>().ok())
-            .collect();
-
-        // validate indexes against current tasks
-        indexes.retain(|&i| i < tasks.len() && !tasks[i].done);
-        if indexes.is_empty() {
-            indexes = rebuild_undone(tasks);
-        }
-        indexes
-    } else {
-        rebuild_undone(tasks)
-    }
-}
-
-fn rebuild_undone(tasks: &[Task]) -> Vec<usize> {
-    tasks
-        .iter()
-        .enumerate()
-        .filter_map(|(i, t)| if !t.done { Some(i) } else { None })
-        .collect()
-}
-
-fn persist_undone_indexes(indexes: &[usize]) {
-    let content = indexes
-        .iter()
-        .map(|i| i.to_string())
-        .collect::<Vec<_>>()
-        .join("\n");
-    fs::write(get_undone_file(), content).expect("Failed to write undone indexes")
-}
-
-fn first_undone(tasks: &[Task]) -> usize {
-    tasks.iter().position(|t| !t.done).unwrap_or(0)
-}
-
-fn load_tasks() -> TaskList {
-    let path = get_tasks_file();
-    if !path.exists() {
-        // Initialize empty list if no file
-        return TaskList {
-            tasks: vec![],
-            current_index: 0,
-        };
-    }
-    let content = fs::read_to_string(path).expect("Failed to read tasks file");
-    let mut tasks_list: TaskList =
-        toml::from_str(&content).expect("Invalid TOML format in tasks file");
-    // make sure index is valid
-    if tasks_list.current_index >= tasks_list.tasks.len() {
-        tasks_list.current_index = first_undone(&tasks_list.tasks);
-    }
-    tasks_list
-}
-
-fn print_progress(manager: &TaskManager) {
-    let total = manager.tasks.len();
-    let done_count = manager.tasks.iter().filter(|t| t.done).count();
+/// Renders the UI.
+fn ui(f: &mut Frame, app: &App) {
+    let size = f.area();
+    let current_task = app.task_manager.current_task();
+    let total = app.task_manager.tasks.len();
+    let done_count = app.task_manager.tasks.iter().filter(|t| t.done).count();
     let undone_count = total - done_count;
-    let bar_width = 70;
-    let filled = bar_width * done_count / total;
-    let empty = bar_width - filled;
-    let percent_done = (done_count * 100) / total;
-
-    let task_status: String = if manager.current_task().done {
-        "✅".into()
+    let percent_done = if total > 0 {
+        (done_count * 100) / total
     } else {
-        "❌".into()
+        0
     };
 
-    println!("\n[");
-    println!(
-        "{} Task {} of {}:",
-        task_status,
-        manager.current_task().id,
-        total
-    );
+    let task_status = if current_task.done { "✅" } else { "❌" };
 
-    println!("\n==============================");
-    println!(
-        "Progress: {}/{} done | {} undone | {}%",
-        done_count, total, undone_count, percent_done
-    );
-    println!(
-        "[{}{}] {}%",
-        "#".repeat(filled),
-        "-".repeat(empty),
+    let header_text = format!("{} Task {} of {}:", task_status, current_task.id, total);
+
+    let progress_text = format!("Progress: {}/{} done | {} undone", done_count, total, undone_count);
+
+    let title_text = current_task.title.to_string();
+    let description_text = current_task.description.to_string();
+
+    let footer_text =
+        "d:mark done / u:mark undone / p:previous task / n:next task / N:next undone / q:quit";
+
+    let chunks = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([
+            Constraint::Min(0),    // Main content
+            Constraint::Length(3), // Footer
+        ])
+        .split(size);
+
+    let available_width = (size.width as usize).saturating_sub(10);
+    let filled_width = (percent_done * available_width) / 100;
+    let empty_width = available_width - filled_width;
+    let progress_bar_line = Line::from(format!("[{}{}] {}%",
+        "#".repeat(filled_width),
+        "-".repeat(empty_width),
         percent_done
-    );
-    println!("==============================\n");
+    ));
 
-    println!("{}\n", manager.current_task().title);
-    println!("{}\n", manager.current_task().description);
-    println!("\nd:mark done / u:mark undone / p:previous task / n:next task / q:quit ?\n");
-    println!("]");
+    let main_content = vec![
+        Line::from(header_text),
+        Line::from(""),
+        Line::from("=============================="),
+        Line::from(progress_text),
+        progress_bar_line,
+        Line::from("=============================="),
+        Line::from(""),
+        Line::from(title_text),
+        Line::from(""),
+        Line::from(description_text),
+    ];
+
+    let main_paragraph = Paragraph::new(main_content)
+        .block(Block::default().borders(Borders::ALL).title("Tasklings"));
+    f.render_widget(main_paragraph, chunks[0]);
+
+    let footer_paragraph = Paragraph::new(footer_text).block(Block::default().borders(Borders::ALL));
+    f.render_widget(footer_paragraph, chunks[1]);
 }
-
-fn main() {
-    let tasks = load_tasks();
-    if tasks.tasks.is_empty() {
-        println!("No tasks defined in ~/.tasks");
-        return;
-    }
-
-    let mut manager = TaskManager::new(tasks.tasks);
-
-    loop {
-        print_progress(&manager);
-
-        print!("> ");
-        io::stdout().flush().unwrap();
-
-        let mut input = String::new();
-        io::stdin().read_line(&mut input).unwrap();
-        let cmd = input.trim();
-
-        match cmd {
-            "d" => {
-                manager.mark_done();
-            }
-            "u" => {
-                manager.mark_undone();
-            }
-            "p" => {
-                manager.previous();
-            }
-            "n" => {
-                manager.next();
-            }
-            "N" => {
-                manager.next_undone();
-            }
-            "q" => {
-                println!("Bye 👋");
-                break;
-            }
-            _ => {
-                println!("Unknown command");
-            }
-        }
-    }
-}
-
