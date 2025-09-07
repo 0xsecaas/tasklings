@@ -114,7 +114,6 @@ fn main() {
             "n" => {
                 if tasks.current_index + 1 < tasks.tasks.len() {
                     tasks.current_index += 1;
-                    save_tasks(&tasks);
                 }
             }
             "q" => {
