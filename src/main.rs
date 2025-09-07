@@ -118,6 +118,7 @@ fn main() {
             }
             "q" => {
                 println!("Bye 👋");
+                break;
             }
             _ => {
                 println!("Unknown command");
