@@ -3,15 +3,15 @@
 use crossterm::{
     event::{DisableMouseCapture, EnableMouseCapture},
     execute,
-    terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
+    terminal::{EnterAlternateScreen, LeaveAlternateScreen, disable_raw_mode, enable_raw_mode},
 };
 use ratatui::{
+    Frame, Terminal,
     backend::CrosstermBackend,
     layout::{Constraint, Direction, Layout},
     text::Line,
     widgets::{Block, Borders, Paragraph},
-    Frame,
-    Terminal,
+    style::{Modifier, Style},
 };
 use std::{error::Error, io};
 
@@ -92,13 +92,14 @@ fn ui(f: &mut Frame, app: &App) {
 
     let header_text = format!("{} Task {} of {}:", task_status, current_task.id, total);
 
-    let progress_text = format!("Progress: {}/{} done | {} undone", done_count, total, undone_count);
+    let progress_text = format!(
+        "Progress: {}/{} done | {} undone",
+        done_count, total, undone_count
+    );
 
     let title_text = current_task.title.to_string();
-    let description_text = current_task.description.to_string();
 
-    let footer_text =
-        "d:mark done / u:mark undone / p:prev / n:next / N:next undone / f:first undone / l:last / q:quit";
+    let footer_text = "[d]:mark done / [u]:mark undone / [p]:prev / [n]:next / [N]:next undone / [f]:first undone / [l]:last / [q]:quit";
 
     let chunks = Layout::default()
         .direction(Direction::Vertical)
@@ -111,13 +112,14 @@ fn ui(f: &mut Frame, app: &App) {
     let available_width = (size.width as usize).saturating_sub(10);
     let filled_width = (percent_done * available_width) / 100;
     let empty_width = available_width - filled_width;
-    let progress_bar_line = Line::from(format!("[{}{}] {}%",
+    let progress_bar_line = Line::from(format!(
+        "[{}{}] {}%",
         "#".repeat(filled_width),
         "-".repeat(empty_width),
         percent_done
     ));
 
-    let main_content = vec![
+    let mut main_content = vec![
         Line::from(header_text),
         Line::from(""),
         Line::from("=============================="),
@@ -125,15 +127,18 @@ fn ui(f: &mut Frame, app: &App) {
         progress_bar_line,
         Line::from("=============================="),
         Line::from(""),
-        Line::from(title_text),
         Line::from(""),
-        Line::from(description_text),
+        Line::from(title_text).style(Style::default().add_modifier(Modifier::BOLD)),
+        Line::from(""),
+        Line::from(""),
     ];
+    main_content.extend(current_task.description.split('\n').map(Line::from));
 
     let main_paragraph = Paragraph::new(main_content)
         .block(Block::default().borders(Borders::ALL).title("Tasklings"));
     f.render_widget(main_paragraph, chunks[0]);
 
-    let footer_paragraph = Paragraph::new(footer_text).block(Block::default().borders(Borders::ALL));
+    let footer_paragraph =
+        Paragraph::new(footer_text).block(Block::default().borders(Borders::ALL));
     f.render_widget(footer_paragraph, chunks[1]);
 }
