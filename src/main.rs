@@ -9,9 +9,9 @@ use ratatui::{
     Frame, Terminal,
     backend::CrosstermBackend,
     layout::{Constraint, Direction, Layout},
-    text::Line,
+    text::{Line, Span},
     widgets::{Block, Borders, Paragraph},
-    style::{Modifier, Style},
+    style::{Color, Modifier, Style},
 };
 use std::{error::Error, io};
 
@@ -112,12 +112,12 @@ fn ui(f: &mut Frame, app: &App) {
     let available_width = (size.width as usize).saturating_sub(10);
     let filled_width = (percent_done * available_width) / 100;
     let empty_width = available_width - filled_width;
-    let progress_bar_line = Line::from(format!(
-        "[{}{}] {}%",
-        "#".repeat(filled_width),
-        "-".repeat(empty_width),
-        percent_done
-    ));
+    let progress_bar_line = Line::from(vec![
+        Span::raw("["),
+        Span::styled("#".repeat(filled_width), Style::default().fg(Color::LightGreen)),
+        Span::raw("-".repeat(empty_width)),
+        Span::raw(format!("] {}%", percent_done)),
+    ]);
 
     let mut main_content = vec![
         Line::from(header_text),
