@@ -62,6 +62,7 @@ fn create_sample_tasks_file() -> io::Result<TaskList> {
             },
         ],
         current_index: 0,
+        the_goal: "1 Step at a time!".to_string(),
     };
     let toml = toml::to_string_pretty(&sample_tasks).map_err(io::Error::other)?;
     fs::write(get_tasks_file(), toml)?;
@@ -69,12 +70,8 @@ fn create_sample_tasks_file() -> io::Result<TaskList> {
 }
 
 /// Persists tasks to the tasks file.
-pub fn persist_tasks(tasks: &[Task], current_index: usize) -> io::Result<()> {
-    let tasklist = TaskList {
-        tasks: tasks.to_vec(),
-        current_index,
-    };
-    let toml = toml::to_string_pretty(&tasklist).map_err(io::Error::other)?;
+pub fn persist_tasks(task_list: &TaskList) -> io::Result<()> {
+    let toml = toml::to_string_pretty(task_list).map_err(io::Error::other)?;
     fs::write(get_tasks_file(), toml)
 }
 

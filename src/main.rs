@@ -3,15 +3,15 @@
 use crossterm::{
     event::{DisableMouseCapture, EnableMouseCapture},
     execute,
-    terminal::{EnterAlternateScreen, LeaveAlternateScreen, disable_raw_mode, enable_raw_mode},
+    terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
 };
 use ratatui::{
-    Frame, Terminal,
     backend::CrosstermBackend,
     layout::{Constraint, Direction, Layout},
+    style::{Color, Modifier, Style},
     text::{Line, Span},
     widgets::{Block, Borders, Paragraph},
-    style::{Color, Modifier, Style},
+    Frame, Terminal,
 };
 use std::{error::Error, io};
 
@@ -114,7 +114,10 @@ fn ui(f: &mut Frame, app: &App) {
     let empty_width = available_width - filled_width;
     let progress_bar_line = Line::from(vec![
         Span::raw("["),
-        Span::styled("#".repeat(filled_width), Style::default().fg(Color::LightGreen)),
+        Span::styled(
+            "#".repeat(filled_width),
+            Style::default().fg(Color::LightGreen),
+        ),
         Span::raw("-".repeat(empty_width)),
         Span::raw(format!("] {}%", percent_done)),
     ]);
@@ -134,8 +137,11 @@ fn ui(f: &mut Frame, app: &App) {
     ];
     main_content.extend(current_task.description.split('\n').map(Line::from));
 
-    let main_paragraph = Paragraph::new(main_content)
-        .block(Block::default().borders(Borders::ALL).title("Tasklings"));
+    let main_paragraph = Paragraph::new(main_content).block(
+        Block::default()
+            .borders(Borders::ALL)
+            .title(app.task_manager.the_goal.as_str()),
+    );
     f.render_widget(main_paragraph, chunks[0]);
 
     let footer_paragraph =

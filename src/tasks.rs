@@ -19,6 +19,12 @@ pub struct TaskList {
     pub tasks: Vec<Task>,
     #[serde(default)]
     pub current_index: usize,
+    #[serde(default = "default_goal")]
+    pub the_goal: String,
+}
+
+fn default_goal() -> String {
+    "Tasklings".to_string()
 }
 
 /// Manages task state.
@@ -28,19 +34,21 @@ pub struct TaskManager {
     pub current_index: usize,
     pub undone_indexes: Vec<usize>,
     pub undone_pos: usize,
+    pub the_goal: String,
 }
 
 impl TaskManager {
     /// Creates a new `TaskManager`.
-    pub fn new(tasks: Vec<Task>) -> io::Result<Self> {
-        let undone_indexes = persistence::load_undone_indexes(&tasks)?;
-        let undone_pos = tasks.iter().position(|t| !t.done).unwrap_or(0);
+    pub fn new(task_list: TaskList) -> io::Result<Self> {
+        let undone_indexes = persistence::load_undone_indexes(&task_list.tasks)?;
+        let undone_pos = task_list.tasks.iter().position(|t| !t.done).unwrap_or(0);
         let current_index = undone_indexes.get(undone_pos).copied().unwrap_or(0);
         Ok(Self {
-            tasks,
+            tasks: task_list.tasks,
             current_index,
             undone_indexes,
             undone_pos,
+            the_goal: task_list.the_goal,
         })
     }
 
@@ -140,7 +148,12 @@ impl TaskManager {
             .get(self.undone_pos)
             .copied()
             .unwrap_or(0);
-        if let Err(e) = persistence::persist_tasks(&self.tasks, current_index) {
+        let task_list = TaskList {
+            tasks: self.tasks.clone(),
+            current_index,
+            the_goal: self.the_goal.clone(),
+        };
+        if let Err(e) = persistence::persist_tasks(&task_list) {
             eprintln!("Failed to persist tasks: {}", e);
         }
         if let Err(e) = persistence::persist_undone_indexes(&self.undone_indexes) {

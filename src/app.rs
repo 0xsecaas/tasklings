@@ -16,7 +16,7 @@ impl App {
     /// Creates a new `App`.
     pub fn new() -> io::Result<App> {
         let tasks_list = persistence::load_tasks()?;
-        let mut task_manager = TaskManager::new(tasks_list.tasks)?;
+        let mut task_manager = TaskManager::new(tasks_list)?;
         task_manager.first_undone();
         Ok(App {
             task_manager,
