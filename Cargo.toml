@@ -6,7 +6,7 @@ repository = "https://github.com/0xsecaas/tasklings"
 readme = "README.md"
 keywords = ["cli", "task-manager", "personal-development", "goal-tracker"]
 categories = ["command-line-utilities"]
-version = "0.2.0"
+version = "0.3.0"
 edition = "2021"
 authors = ["Charly <github.womankind045@passinbox.com>"]
 
