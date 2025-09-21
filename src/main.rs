@@ -16,6 +16,7 @@ use ratatui::{
 use std::{error::Error, io};
 
 mod app;
+mod git;
 mod input;
 mod persistence;
 mod tasks;
@@ -66,6 +67,42 @@ fn run_app<B: ratatui::backend::Backend>(
             InputEvent::NextUndoneTask => app.next_undone_task(),
             InputEvent::FirstUndone => app.first_undone_task(),
             InputEvent::LastTask => app.last_task(),
+            InputEvent::NewTask => {
+                terminal.set_cursor_position(ratatui::layout::Position::from((0, 0)))?;
+                execute!(io::stdout(), LeaveAlternateScreen)?;
+                disable_raw_mode()?;
+                app.new_task()?;
+                enable_raw_mode()?;
+                execute!(io::stdout(), EnterAlternateScreen)?;
+                terminal.clear()?;
+            }
+            InputEvent::EditTask => {
+                terminal.set_cursor_position(ratatui::layout::Position::from((0, 0)))?;
+                execute!(io::stdout(), LeaveAlternateScreen)?;
+                disable_raw_mode()?;
+                app.edit_task()?;
+                enable_raw_mode()?;
+                execute!(io::stdout(), EnterAlternateScreen)?;
+                terminal.clear()?;
+            }
+            InputEvent::GitPush => {
+                terminal.set_cursor_position(ratatui::layout::Position::from((0, 0)))?;
+                execute!(io::stdout(), LeaveAlternateScreen)?;
+                disable_raw_mode()?;
+                app.git_push()?;
+                enable_raw_mode()?;
+                execute!(io::stdout(), EnterAlternateScreen)?;
+                terminal.clear()?;
+            }
+            InputEvent::GitPull => {
+                terminal.set_cursor_position(ratatui::layout::Position::from((0, 0)))?;
+                execute!(io::stdout(), LeaveAlternateScreen)?;
+                disable_raw_mode()?;
+                app.git_pull()?;
+                enable_raw_mode()?;
+                execute!(io::stdout(), EnterAlternateScreen)?;
+                terminal.clear()?;
+            }
             InputEvent::Noop => {}
         }
 
@@ -99,7 +136,7 @@ fn ui(f: &mut Frame, app: &App) {
 
     let title_text = current_task.title.to_string();
 
-    let footer_text = "[d]:mark done / [u]:mark undone / [p]:prev / [n]:next / [N]:next undone / [f]:first undone / [l]:last / [q]:quit";
+    let footer_text = "[d]:mark done / [u]:mark undone / [k]:prev / [j]:next / [N]:next undone / [f]:first undone / [l]:last / [n]:new / [e]:edit / [p]:pull / [P]:push / [q]:quit";
 
     let chunks = Layout::default()
         .direction(Direction::Vertical)

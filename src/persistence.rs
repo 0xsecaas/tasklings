@@ -5,22 +5,30 @@ use std::fs;
 use std::io;
 use std::path::PathBuf;
 
-/// Returns the path to the tasks file.
-fn get_tasks_file() -> PathBuf {
+/// Returns the path to the tasks directory.
+fn get_tasks_dir() -> PathBuf {
     dirs::home_dir()
         .expect("Could not find home directory")
         .join(".tasks")
+        .join("tasks")
+}
+
+/// Returns the path to the tasks file.
+fn get_tasks_file() -> PathBuf {
+    get_tasks_dir().join("tasks.toml")
 }
 
 /// Returns the path to the undone indexes file.
 fn get_undone_file() -> PathBuf {
-    dirs::home_dir()
-        .expect("Could not find home directory")
-        .join(".tasks_undone")
+    get_tasks_dir().join("tasks_undone.toml")
 }
 
 /// Loads tasks from the tasks file.
 pub fn load_tasks() -> io::Result<TaskList> {
+    let dir = get_tasks_dir();
+    if !dir.exists() {
+        fs::create_dir_all(&dir)?;
+    }
     let path = get_tasks_file();
     if !path.exists() {
         return create_sample_tasks_file();
@@ -49,7 +57,7 @@ fn create_sample_tasks_file() -> io::Result<TaskList> {
                 id: 2,
                 title: "Add your desired tasks".to_string(),
                 description:
-                    "Open the $HOME/.tasks file and add as many sequential tasks you want."
+                    "Open the $HOME/.tasks/tasks file and add as many sequential tasks you want."
                         .to_string(),
                 done: false,
             },
@@ -78,6 +86,9 @@ pub fn persist_tasks(task_list: &TaskList) -> io::Result<()> {
 /// Loads undone indexes from the undone indexes file.
 pub fn load_undone_indexes(tasks: &[Task]) -> io::Result<Vec<usize>> {
     let path = get_undone_file();
+    if !path.exists() {
+        fs::write(&path, "")?;
+    }
     if path.exists() {
         let content = fs::read_to_string(path)?;
         let mut indexes: Vec<usize> = content

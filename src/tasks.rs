@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 use std::io;
 
 /// A single task.
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 pub struct Task {
     pub id: i32,
     pub title: String,
@@ -133,6 +133,21 @@ impl TaskManager {
             .position(|&i| i == index)
             .unwrap();
 
+        self.persist();
+    }
+
+    /// Adds a new task.
+    pub fn add_task(&mut self, task: Task) {
+        self.tasks.push(task);
+        self.undone_indexes.push(self.tasks.len() - 1);
+        self.persist();
+    }
+
+    /// Updates an existing task.
+    pub fn update_task(&mut self, task: Task) {
+        if let Some(t) = self.tasks.iter_mut().find(|t| t.id == task.id) {
+            *t = task;
+        }
         self.persist();
     }
 
